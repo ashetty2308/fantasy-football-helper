@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fantasy Football Advisor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center p-6">
+
+<h1 class="text-4xl font-bold mb-6">Fantasy Football Advisor</h1>
+
+<textarea id="rosterInput" class="w-full max-w-lg p-4 border rounded shadow mb-4" rows="10" placeholder="Enter one player per line"></textarea>
+
+<div class="flex gap-4 mb-6">
+  <button id="saveRoster" class="bg-blue-500 text-white px-4 py-2 rounded shadow hover:bg-blue-600">Save Roster</button>
+  <button id="getAdvice" class="bg-green-500 text-white px-4 py-2 rounded shadow hover:bg-green-600">Get Key Starters</button>
+  <button id="showSchedule" class="bg-yellow-500 text-white px-4 py-2 rounded shadow hover:bg-yellow-600">Show Schedule</button>
+</div>
+
+<div class="w-full max-w-lg p-4 bg-white rounded shadow mb-4">
+  <h2 class="text-xl font-semibold mb-2">AI Key Starters:</h2>
+  <pre id="adviceDisplay" class="whitespace-pre-wrap">Your advice will appear here...</pre>
+</div>
+
+<div class="w-full max-w-lg p-4 bg-white rounded shadow">
+  <h2 class="text-xl font-semibold mb-2">Schedule:</h2>
+  <pre id="scheduleDisplay" class="whitespace-pre-wrap">Schedule will appear here...</pre>
+</div>
+
+<script>
+const rosterInput = document.getElementById('rosterInput');
+const adviceDisplay = document.getElementById('adviceDisplay');
+const scheduleDisplay = document.getElementById('scheduleDisplay');
+let reminderShown = false;
+
+if ("Notification" in window) Notification.requestPermission();
+
+document.getElementById('saveRoster').addEventListener('click', async () => {
+  const players = rosterInput.value.split("\n").map(p => p.trim()).filter(Boolean);
+  if (!players.length) return alert("Enter at least one player");
+  await fetch('/roster', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ players }) });
+  alert("Roster saved!");
+});
+
+document.getElementById('getAdvice').addEventListener('click', async () => {
+  const players = rosterInput.value.split("\n").map(p => p.trim()).filter(Boolean);
+  if (!players.length) return alert("Enter at least one player");
+
+  const res = await fetch('/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ players }) });
+  const data = await res.json();
+  adviceDisplay.textContent = data.advice;
+
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      title: "Fantasy Key Starters Ready",
+      body: data.advice
+    });
+  }
+});
+
+document.getElementById('showSchedule').addEventListener('click', async () => {
+  const res = await fetch('/schedule');
+  const data = await res.json();
+  scheduleDisplay.textContent = data.schedule.join("\n");
+});
+
+window.addEventListener('load', async () => {
+  const res = await fetch('/roster');
+  const data = await res.json();
+  if (data.roster) rosterInput.value = JSON.parse(data.roster).join("\n");
+});
+
+// Check for Thursday 12 PM ET reminder every minute
+setInterval(async () => {
+  const res = await fetch('/roster');
+  const data = await res.json();
+  const now = new Date();
+  const day = now.getDay();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+
+  if (day === 4 && hours === 12 && minutes === 0 && data.thursdayReminder && !reminderShown) {
+    reminderShown = true;
+    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        title: "Fantasy Football Reminder",
+        body: data.thursdayReminder
+      });
+    }
+  }
+}, 60000);
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").then(() => console.log("Service Worker registered")).catch(console.error);
+}
+</script>
+</body>
+</html>
