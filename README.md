@@ -1,6 +1,7 @@
 **About:**
 - My goal is to avoid doing our fantasy football group's punishment. By any means possible.
 - To do this, I built an agent that analyzes historical data, and every week, based on existing matchups and my roster, gives me key players that I have to absolutely play.
+- Every Thursday, this Cloudflare-powered app will notify me on my browser (@ 12 PM eastern) that the analysis is complete. After this, I can view the key players that are going to help me win.
 
 Stack:
 - Agents, Cloudflare, Web Scraping (ESPN)
